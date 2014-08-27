@@ -1,0 +1,60 @@
+#!/usr/bin/python
+
+class Pubkey(object):
+
+    platform = 'Generic'
+    distribution = None
+
+    def __new__(cls, *args, **kwargs):
+        return load_platform_subclass(Pubkey, args, kwargs)
+
+    def __init__(self, module):
+        self.module     = module
+        self.state      = module.params['state']
+        self.name       = module.params['name']
+        self.password   = module.params['password']
+        self.key        = module.params['key']
+
+        # select whether we dump additional debug info through syslog
+        self.syslogging = False
+
+def main():
+    module = AnsibleModule(
+        argument_spec = dict(
+            state=dict(default='present', choices=['present', 'absent'], type='str'),
+            name=dict(required=True, aliases=['user'], type='str'),
+            password=dict(required=True, type='str'),
+            key=dict(required=True, type='str')
+        ),
+        supports_check_mode=False
+    )
+
+    pubkey = Pubkey(module)
+
+    rc = None
+    out = ''
+    err = ''
+    result = {}
+    result['name'] = pubkey.name
+    result['state'] = pubkey.state
+    if pubkey.state == 'absent':     # 1506 in the user module
+        # place logic to remove the pubkey from github
+        result['msg'] = "Removing"
+    elif pubkey.state == 'present':
+        # place logic to add the pubkey to github if it wasn't already there
+        result['msg'] = "Adding"
+
+    if rc is None:
+        result['changed'] = False
+    else:
+        result['changed'] = True
+    if out:
+        result['stdout'] = out
+    if err:
+        result['stderr'] = err
+
+    module.exit_json(**result)
+
+# import module snippets
+from ansible.module_utils.basic import *
+main()
