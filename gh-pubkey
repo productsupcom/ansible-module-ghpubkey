@@ -1,6 +1,43 @@
 #!/usr/bin/python
 import requests
 
+"""
+Ansible module for adding or removing public keys to Github.
+(c) ProductsUp, Yorick Terweijden yt@products-up.de
+"""
+
+DOCUMENTATION = '''
+---
+module: authorized_key
+short_description: Adds or removes an SSH public key to Github
+description:
+     - Adds or removes an SSH public key to a Github account
+options:
+  user:
+    description:
+      - The username for the Github account to which the key should be added
+    required: true
+    default: null
+    aliases: [name]
+  password:
+    description:
+      - The password for the Github account to which the key should be added
+    required: true
+    default: null
+  key:
+    description:
+      - The SSH public key, as a string
+    required: true
+    default: null
+  state:
+    description:
+      - Whether the given key should or should not be added or not to Github
+    required: false
+    choices: [ "present", "absent" ]
+    default: "present"
+author: Yorick Terweijden
+'''
+
 class Pubkey(object):
 
     platform = 'Generic'
