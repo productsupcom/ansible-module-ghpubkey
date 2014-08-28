@@ -50,6 +50,11 @@ options:
       - The SSH public key, as a string
     required: true
     default: null
+  title:
+    description:
+      - The title for the Key at Github
+    required: false
+    default: null
   state:
     description:
       - Whether the given key should or should not be added or not to Github
@@ -74,6 +79,7 @@ class Pubkey(object):
         self.name       = module.params['name']
         self.password   = module.params['password']
         self.key        = module.params['key']
+        self.title      = module.params['title']
 
         # select whether we dump additional debug info through syslog
         self.syslogging = False
@@ -96,18 +102,23 @@ class Pubkey(object):
         type, key_string_with_comment = self.key.split(' ', 1)
         if type not in VALID_SSH2_KEY_TYPES:
             return False
-        key_string, comment = key_string_with_comment.split(' ', 1)
-        return type, key_string, comment
+        key_string_array = key_string_with_comment.split(' ', 1)
+        if len(key_string_array) < 0:
+            return type, key_string_array[0], key_string_array[1]
+        else:
+            return type, key_string_array[0], None
 
     def key_exists(self):
         self.fetch_current_keys()
         (type, key_string, comment) = self.process_key()
         for key in self.current_keys:
-            if comment == key[u'title']:
+            if type+' '+key_string == key[u'key']:
                 return key[u'id']
 
     def add_key(self):
         (type, key_string, comment) = self.process_key()
+        if self.title:
+            comment = self.title
         payload = {'title': comment, 'key': type+' '+key_string}
         r = requests.post('https://api.github.com/user/keys', data=json.dumps(payload), auth=(self.name, self.password))
         if r.status_code == requests.codes.created:
@@ -137,9 +148,10 @@ def main():
     module = AnsibleModule(
         argument_spec = dict(
             state=dict(default='present', choices=['present', 'absent'], type='str'),
-            name=dict(required=True, aliases=['user'], type='str'),
+            name=dict(required=True, aliases=['user','username'], type='str'),
             password=dict(required=True, type='str'),
-            key=dict(required=True, type='str')
+            key=dict(required=True, type='str'),
+            title=dict(required=False, type='str')
         ),
         supports_check_mode=False
     )
