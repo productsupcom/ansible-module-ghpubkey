@@ -1,9 +1,11 @@
 #!/usr/bin/python
+import requests
 
 class Pubkey(object):
 
     platform = 'Generic'
     distribution = None
+    current_keys = None
 
     def __new__(cls, *args, **kwargs):
         return load_platform_subclass(Pubkey, args, kwargs)
@@ -17,6 +19,61 @@ class Pubkey(object):
 
         # select whether we dump additional debug info through syslog
         self.syslogging = False
+
+    def fetch_current_keys(self):
+        r = requests.get('https://api.github.com/user/keys', auth=(self.name, self.password))
+        self.current_keys = r.json()
+        return r.status_code == requests.codes.ok
+
+    def process_key(self):
+        # copied from authorized_keys
+        VALID_SSH2_KEY_TYPES = [
+            'ssh-ed25519',
+            'ecdsa-sha2-nistp256',
+            'ecdsa-sha2-nistp384',
+            'ecdsa-sha2-nistp521', 
+            'ssh-dss',
+            'ssh-rsa',
+        ]
+        type, key_string_with_comment = self.key.split(' ', 1)
+        if type not in VALID_SSH2_KEY_TYPES:
+            return False
+        key_string, comment = key_string_with_comment.split(' ', 1)
+        return type, key_string, comment
+
+    def key_exists(self):
+        self.fetch_current_keys()
+        (type, key_string, comment) = self.process_key()
+        for key in self.current_keys:
+            if comment == key[u'title']:
+                return key[u'id']
+
+    def add_key(self):
+        (type, key_string, comment) = self.process_key()
+        payload = {'title': comment, 'key': type+' '+key_string}
+        r = requests.post('https://api.github.com/user/keys', data=json.dumps(payload), auth=(self.name, self.password))
+        if r.status_code == requests.codes.created:
+            out = "Added"
+            err = None
+            rc = 1
+        else:
+            out = "Adding failed"
+            err = r.text
+            rc = None
+        return rc, out, err
+
+    def delete_key(self, id):
+        r = requests.delete('https://api.github.com/user/keys/' + str(id), auth=(self.name, self.password))
+        if r.status_code == requests.codes.no_content:
+            out = "Removed"
+            err = None
+            rc = 1
+        else:
+            out = "Removing failed"
+            err = r.ktext
+            rc = None
+        return rc, out, err
+
 
 def main():
     module = AnsibleModule(
@@ -37,12 +94,13 @@ def main():
     result = {}
     result['name'] = pubkey.name
     result['state'] = pubkey.state
-    if pubkey.state == 'absent':     # 1506 in the user module
-        # place logic to remove the pubkey from github
-        result['msg'] = "Removing"
+    id = pubkey.key_exists()
+    if pubkey.state == 'absent':
+        if id:
+            (rc, out, err) = pubkey.delete_key(id)
     elif pubkey.state == 'present':
-        # place logic to add the pubkey to github if it wasn't already there
-        result['msg'] = "Adding"
+        if not id:
+            (rc, out, err) = pubkey.add_key()
 
     if rc is None:
         result['changed'] = False
