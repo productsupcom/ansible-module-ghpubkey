@@ -29,7 +29,7 @@ THE SOFTWARE.
 
 DOCUMENTATION = '''
 ---
-module: authorized_key
+module: ghpubkey
 short_description: Adds or removes an SSH public key to Github
 description:
      - Adds or removes an SSH public key to a Github account
