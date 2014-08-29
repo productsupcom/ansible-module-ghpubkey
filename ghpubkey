@@ -69,6 +69,7 @@ class Pubkey(object):
     platform = 'Generic'
     distribution = None
     current_keys = None
+    module = object
 
     def __new__(cls, *args, **kwargs):
         return load_platform_subclass(Pubkey, args, kwargs)
@@ -79,6 +80,8 @@ class Pubkey(object):
         self.name       = module.params['name']
         self.password   = module.params['password']
         self.key        = module.params['key']
+        if not self.key:
+            self.module.fail_json(msg="Key is empty")
         self.title      = module.params['title']
 
         # select whether we dump additional debug info through syslog
@@ -101,7 +104,7 @@ class Pubkey(object):
         ]
         type, key_string_with_comment = self.key.split(' ', 1)
         if type not in VALID_SSH2_KEY_TYPES:
-            return False
+            self.module.fail_json(msg="SSH2 Key invalid: %s" % self.key)
         key_string_array = key_string_with_comment.split(' ', 1)
         if len(key_string_array) < 0:
             return type, key_string_array[0], key_string_array[1]
@@ -109,8 +112,8 @@ class Pubkey(object):
             return type, key_string_array[0], None
 
     def key_exists(self):
-        self.fetch_current_keys()
         (type, key_string, comment) = self.process_key()
+        self.fetch_current_keys()
         for key in self.current_keys:
             if type+' '+key_string == key[u'key']:
                 return key[u'id']
