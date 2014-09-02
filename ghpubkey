@@ -106,7 +106,7 @@ class Pubkey(object):
         if type not in VALID_SSH2_KEY_TYPES:
             self.module.fail_json(msg="SSH2 Key invalid: %s" % self.key)
         key_string_array = key_string_with_comment.split(' ', 1)
-        if len(key_string_array) < 0:
+        if len(key_string_array) == 2:
             return type, key_string_array[0], key_string_array[1]
         else:
             return type, key_string_array[0], None
