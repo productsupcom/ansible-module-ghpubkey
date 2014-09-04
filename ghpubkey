@@ -30,19 +30,20 @@ THE SOFTWARE.
 DOCUMENTATION = '''
 ---
 module: ghpubkey
+version_added: 1.6
 short_description: Adds or removes an SSH public key to Github
 description:
      - Adds or removes an SSH public key to a Github account
 options:
   user:
     description:
-      - The username for the Github account to which the key should be added
+      - Github account username
     required: true
     default: null
     aliases: [name]
   password:
     description:
-      - The password for the Github account to which the key should be added
+      - Github account password
     required: true
     default: null
   key:
@@ -52,16 +53,25 @@ options:
     default: null
   title:
     description:
-      - The title for the Key at Github
+      - Title under which the Key will be known at Github
     required: false
     default: null
   state:
     description:
-      - Whether the given key should or should not be added or not to Github
+      - Whether the given key should or should not be added or not to the Github account
     required: false
     choices: [ "present", "absent" ]
     default: "present"
 author: Yorick Terweijden
+'''
+
+EXAMPLES = '''
+# Add each SSH Public key collected in the Inventory sub-dir keys to Github
+- ghpubkey: user={{github.username}} password={{github.password}} key="{{item}}" title="Ansible imported for {{ ansible_fqdn }}"
+  with_file: "{{ inventory_dir }}/keys/{{ ansible_fqdn }}.pub"
+
+# Add a single SSH Public Key using the Comment as a title
+- ghpubkey: user={{github.username}} password={{github.password}} key="{{ssh_pub_key}}"
 '''
 
 class Pubkey(object):
